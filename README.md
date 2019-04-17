@@ -1,6 +1,8 @@
 # SpeedLimit
 Including some speedlimit shell scripts on linux platform,which you can make adaptation to your server or needed
 
+Highly welcome to push your shell script on Linux platform.
+
 ------
 
 ## Local Area Network Or Proxy Server
