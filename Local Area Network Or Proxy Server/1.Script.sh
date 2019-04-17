@@ -1,47 +1,48 @@
 #!/bin/bash
 ##给192.168.0网段的IP做限速
-##外网网卡
-IN=eth1
-##内网网卡
-DEV=enp1s0  
+##limit target : 192.168.0.xxx 
+
+##网卡
+## use ifconfig command to figure out you device name,here is mime,enp1s0,which usually is a default name on Centos.
+DEV=enp1s0
 start() {
 ## 清除 eth1 eth0 所有队列规则
+## clean all rules on this MAC
 tc qdisc del dev $DEV root 2>/dev/null
-#tc qdisc del dev $IN  root 2>/dev/null
+
 ##定义总的上下带宽
+## set a peak download bandwith
 tc qdisc add dev $DEV root handle 2: htb
 tc class add dev $DEV parent 2: classid 2:1 htb rate 3000kbit
-#tc qdisc add dev $IN root handle 1: htb
-#tc class add dev $IN parent 1: classid 1:1  htb rate 3000kbit
+
+#from 2 to 253
 for (( i=2; i<=253; i=i+1 ))
 do
 #####下载控制在每人实际最大???k/S左右
+##### value after ceil is the limit speed,3mbit approx equals 380 kb/s 
 tc class add dev $DEV parent 2:1 classid 2:2$i htb rate 500kbit ceil 3mbit burst 20k
 tc qdisc add dev $DEV parent 2:2$i handle 2$i: sfq
 tc filter add dev $DEV parent 2:0 protocol ip prio 4 u32 match ip dst 192.168.0.$i flowid 2:2$i
-#####上传控制在每人实际最大???K/S左右
-#tc class add dev $IN parent 1:1 classid 1:1$i htb rate 100kbit ceil 300kbit burst 15k
-#tc qdisc add dev $IN parent 1:1$i handle 1$i: sfq
-#tc filter add dev $IN parent 1:0 protocol ip prio $i handle $i fw classid 1:1$i
+ 
 iptables -t mangle -A PREROUTING -s 192.168.0.$i -j MARK --set-mark 0x$i
 done
 
 }
 stop(){
-echo -n "(删除所有队列......)"
+echo -n "(删除所有队列/Deled all rules successfully ......)"
 ( tc qdisc del dev $DEV root &&
 for (( i=2; i<=253; i=i+1 ))
 do
 /sbin/iptables -t mangle -D PREROUTING -s 192.168.0.$i -j MARK --set-mark 0x$i
-done && echo "ok.删除成功!" ) || echo "error."
+done && echo "ok.删除成功/Delete succecced!" ) || echo "error."
 }
 #显示状态
 status() {
-echo "1.show qdisc $DEV  (显示下行队列):----------------------------------------------"
+echo "1.show qdisc $DEV  (显示下行队列/Download rules as bellow):----------------------------------------------"
 tc -s qdisc show dev $DEV
-echo "2.show class $DEV  (显示下行分类):----------------------------------------------"
+echo "2.show class $DEV  (显示下行分类/Download classify as bellow):----------------------------------------------"
 tc class show dev $DEV
-echo "3. tc -s class show dev $IN (显示上行队列和分类流量详细信息):------------------"
+echo "3. tc -s class show dev $IN (显示上行队列和分类流量详细信息/Upload Specification as bellow:):------------------"
 #tc -s class show dev $IN
 echo "说明:设置总队列下行和上行带宽 3M."
 }
@@ -67,7 +68,7 @@ exit 0
 restart)
 stop
 start
-echo "流量控制规则重新装载!"
+echo "流量控制规则重新装载!/Reload!"
 ;;
 status)
 status
